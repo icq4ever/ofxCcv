@@ -6,8 +6,6 @@
 #ifndef GUARD_ccv_h
 #define GUARD_ccv_h
 
-#include <unistd.h>
-#include <stdint.h>
 #define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +35,10 @@
 #define ccmemalign(memptr, alignment, size) (*memptr = ccmalloc(size))
 #endif
 
+// Include toll-free bridging for ccv_nnc_tensor_t
+#define CCV_NNC_TENSOR_TFB (1)
+#include "nnc/ccv_nnc_tfb.h"
+
 /* Doxygen will ignore these, otherwise it has problem to process warn_unused_result directly. */
 #define CCV_WARN_UNUSED(x) x __attribute__((warn_unused_result))
 
@@ -61,13 +63,14 @@ static const int _ccv_get_data_type_size[] = { -1, 1, 4, -1, 4, -1, -1, -1, 8, -
 #define CCV_GET_DATA_TYPE_SIZE(x) _ccv_get_data_type_size[CCV_GET_DATA_TYPE(x) >> 12]
 #define CCV_MAX_CHANNEL (0xFFF)
 #define CCV_GET_CHANNEL(x) ((x) & 0xFFF)
+#define CCV_GET_STEP(cols, type) (((cols) * CCV_GET_DATA_TYPE_SIZE(type) * CCV_GET_CHANNEL(type) + 3) & -4)
 #define CCV_ALL_DATA_TYPE (CCV_8U | CCV_32S | CCV_32F | CCV_64S | CCV_64F)
 
 enum {
-	CCV_MATRIX_DENSE  = 0x0100000,
-	CCV_MATRIX_SPARSE = 0x0200000,
-	CCV_MATRIX_CSR    = 0x0400000,
-	CCV_MATRIX_CSC    = 0x0800000,
+	CCV_MATRIX_DENSE  = 0x00100000,
+	CCV_MATRIX_SPARSE = 0x00200000,
+	CCV_MATRIX_CSR    = 0x00400000,
+	CCV_MATRIX_CSC    = 0x00800000,
 };
 
 enum {
@@ -75,49 +78,32 @@ enum {
 	CCV_REUSABLE      = 0x40000000, // matrix can be recycled
 	CCV_UNMANAGED     = 0x20000000, // matrix is allocated by user, therefore, cannot be freed by ccv_matrix_free/ccv_matrix_free_immediately
 	CCV_NO_DATA_ALLOC = 0x10000000, // matrix is allocated as header only, but with no data section, therefore, you have to free the data section separately
+	CCV_TAPE_ALLOC    = 0x08000000, // matrix is allocated on a tape.
+	CCV_PINNED_MEM    = 0x04000000, // matrix is pinned in CUDA.
 };
 
-typedef union {
-	unsigned char* u8;
-	int* i32;
-	float* f32;
-	int64_t* i64;
-	double* f64;
-} ccv_matrix_cell_t;
-
-typedef struct {
-	int type;
-	uint64_t sig;
-	int refcount;
-	int rows;
-	int cols;
-	int step;
-	union {
-		unsigned char u8;
-		int i32;
-		float f32;
-		int64_t i64;
-		double f64;
-		void* p;
-	} tag;
-	ccv_matrix_cell_t data;
-} ccv_dense_matrix_t;
+#define CCV_GET_TAPE_ALLOC(type) ((type) & CCV_TAPE_ALLOC)
 
 enum {
-	CCV_SPARSE_VECTOR = 0x01000000,
 	CCV_DENSE_VECTOR  = 0x02000000,
+	CCV_SPARSE_VECTOR = 0x01000000,
 };
 
-typedef struct ccv_dense_vector_t {
+typedef struct {
+	uint8_t ifbit;
+	uint32_t i;
+} ccv_sparse_matrix_index_t;
+
+typedef struct {
 	int step;
-	int length;
-	int index;
-	int prime;
-	int load_factor;
-	ccv_matrix_cell_t data;
-	int* indice;
-	struct ccv_dense_vector_t* next;
-} ccv_dense_vector_t;
+	int prime_index;
+	uint32_t size;
+	uint32_t rnum;
+	union {
+		ccv_sparse_matrix_index_t* index;
+		ccv_numeric_data_t data;
+	};
+} ccv_sparse_matrix_vector_t;
 
 enum {
 	CCV_SPARSE_ROW_MAJOR = 0x00,
@@ -126,25 +112,25 @@ enum {
 
 typedef struct {
 	int type;
-	uint64_t sig;
 	int refcount;
+	uint64_t sig;
 	int rows;
 	int cols;
 	int major;
-	int prime;
-	int load_factor;
+	int prime_index;
+	uint32_t size;
+	uint32_t rnum;
 	union {
-		unsigned char chr;
-		int i;
-		float fl;
-		int64_t l;
-		double db;
-	} tag;
-	ccv_dense_vector_t* vector;
+		unsigned char u8;
+		int i32;
+		float f32;
+		int64_t i64;
+		double f64;
+		void* p;
+	} tb;
+	ccv_sparse_matrix_index_t* index;
+	ccv_sparse_matrix_vector_t* vector;
 } ccv_sparse_matrix_t;
-
-extern int _ccv_get_sparse_prime[];
-#define CCV_GET_SPARSE_PRIME(x) _ccv_get_sparse_prime[(x)]
 
 typedef void ccv_matrix_t;
 
@@ -238,21 +224,22 @@ void ccv_cache_close(ccv_cache_t* cache);
 
 typedef struct {
 	int type;
-	uint64_t sig;
 	int refcount;
+	uint64_t sig;
 	int rows;
 	int cols;
 	int nnz;
 	union {
-		unsigned char chr;
-		int i;
-		float fl;
-		int64_t l;
-		double db;
-	} tag;
+		unsigned char u8;
+		int i32;
+		float f32;
+		int64_t i64;
+		double f64;
+		void* p;
+	} tb;
 	int* index;
 	int* offset;
-	ccv_matrix_cell_t data;
+	ccv_numeric_data_t data;
 } ccv_compressed_sparse_matrix_t;
 
 #define ccv_clamp(x, a, b) (((x) < (a)) ? (a) : (((x) > (b)) ? (b) : (x)))
@@ -263,7 +250,7 @@ typedef struct {
  * @defgroup ccv_memory memory alloc/dealloc
  * @{
  */
-#define ccv_compute_dense_matrix_size(rows, cols, type) (sizeof(ccv_dense_matrix_t) + (((cols) * CCV_GET_DATA_TYPE_SIZE(type) * CCV_GET_CHANNEL(type) + 3) & -4) * (rows))
+#define ccv_compute_dense_matrix_size(rows, cols, type) (((sizeof(ccv_dense_matrix_t) + 15) & -16) + (((cols) * CCV_GET_DATA_TYPE_SIZE(type) * CCV_GET_CHANNEL(type) + 3) & -4) * (rows))
 /**
  * Check the input matrix, if it is the allowed type, return it, otherwise create one with prefer_type.
  * @param x The matrix to check.
@@ -325,6 +312,117 @@ void ccv_matrix_free_immediately(ccv_matrix_t* mat);
  * @param mat The matrix.
  */
 void ccv_matrix_free(ccv_matrix_t* mat);
+
+#define CCV_SPARSE_FOREACH_X(mat, block, for_block) \
+	do { \
+		uint32_t _i_, _j_; \
+		const uint32_t _size_ = (mat)->size; \
+		__attribute__((unused)) const size_t _c_ = CCV_GET_CHANNEL((mat)->type); \
+		if ((mat)->type & CCV_DENSE_VECTOR) \
+		{ \
+			for (_i_ = 0; _i_ < _size_; _i_++) \
+			{ \
+				ccv_sparse_matrix_index_t* const _idx_ = (mat)->index + _i_; \
+				ccv_sparse_matrix_vector_t* const _v_ = (mat)->vector + _i_; \
+				if (_idx_->ifbit <= 1 || !_v_->size) \
+					continue; \
+				for (_j_ = 0; _j_ < _v_->size; _j_++) \
+				{ \
+					block(_idx_->i, _j_, _j_ * _c_, _v_->data, for_block); \
+				} \
+			} \
+		} else { \
+			const size_t _idx_size_ = sizeof(ccv_sparse_matrix_index_t) + ((CCV_GET_DATA_TYPE_SIZE((mat)->type) * CCV_GET_CHANNEL((mat)->type) + 3) & -4); \
+			for (_i_ = 0; _i_ < _size_; _i_++) \
+			{ \
+				ccv_sparse_matrix_index_t* const _idx_ = (mat)->index + _i_; \
+				ccv_sparse_matrix_vector_t* const _v_ = (mat)->vector + _i_; \
+				if (_idx_->ifbit <= 1 || !_v_->rnum) \
+					continue; \
+				uint8_t* const _vidx_ = (uint8_t*)_v_->index; \
+				for (_j_ = 0; _j_ < _v_->size; _j_++) \
+				{ \
+					ccv_sparse_matrix_index_t* const _idx_j_ = (ccv_sparse_matrix_index_t*)(_vidx_ + _idx_size_ * _j_); \
+					if (_idx_j_->ifbit <= 1) \
+						continue; \
+					ccv_numeric_data_t _d_ = { .u8 = (uint8_t*)(_idx_j_ + 1) }; \
+					block(_idx_->i, _idx_j_->i, 0, _d_, for_block); \
+				} \
+			} \
+		} \
+	} while (0)
+#define _ccv_sparse_get_32s_vector_rmj(_i_, _j_, _k_, _v_, block) block((_i_), (_j_), (_v_.i32 + (_k_)))
+#define _ccv_sparse_get_32f_vector_rmj(_i_, _j_, _k_, _v_, block) block((_i_), (_j_), (_v_.f32 + (_k_)))
+#define _ccv_sparse_get_64s_vector_rmj(_i_, _j_, _k_, _v_, block) block((_i_), (_j_), (_v_.i64 + (_k_)))
+#define _ccv_sparse_get_64f_vector_rmj(_i_, _j_, _k_, _v_, block) block((_i_), (_j_), (_v_.f64 + (_k_)))
+#define _ccv_sparse_get_8u_vector_rmj(_i_, _j_, _k_, _v_, block) block((_i_), (_j_), (_v_.u8 + (_k_)))
+#define _ccv_sparse_get_32s_vector_cmj(_i_, _j_, _k_, _v_, block) block((_j_), (_i_), (_v_.i32 + (_k_)))
+#define _ccv_sparse_get_32f_vector_cmj(_i_, _j_, _k_, _v_, block) block((_j_), (_i_), (_v_.f32 + (_k_)))
+#define _ccv_sparse_get_64s_vector_cmj(_i_, _j_, _k_, _v_, block) block((_j_), (_i_), (_v_.i64 + (_k_)))
+#define _ccv_sparse_get_64f_vector_cmj(_i_, _j_, _k_, _v_, block) block((_j_), (_i_), (_v_.f64 + (_k_)))
+#define _ccv_sparse_get_8u_vector_cmj(_i_, _j_, _k_, _v_, block) block((_j_), (_i_), (_v_.u8 + (_k_)))
+/**
+ * This method enables you to loop over non-zero (or assigned) positions in a sparse matrix.
+ * @param mat The sparse matrix.
+ * @param block(row, col, value) a macro to loop over, row, col is the position (depends on if it is row major or col major), value is the typed array.
+ */
+#define CCV_SPARSE_FOREACH(mat, block) \
+	do { if ((mat)->major & CCV_SPARSE_COL_MAJOR) { switch (CCV_GET_DATA_TYPE((mat)->type)) { \
+			case CCV_32S: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_32s_vector_cmj, block); break; } \
+			case CCV_32F: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_32f_vector_cmj, block); break; } \
+			case CCV_64S: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_64s_vector_cmj, block); break; } \
+			case CCV_64F: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_64f_vector_cmj, block); break; } \
+			default: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_8u_vector_cmj, block); } } \
+		} else { switch (CCV_GET_DATA_TYPE((mat)->type)) { \
+			case CCV_32S: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_32s_vector_rmj, block); break; } \
+			case CCV_32F: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_32f_vector_rmj, block); break; } \
+			case CCV_64S: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_64s_vector_rmj, block); break; } \
+			case CCV_64F: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_64f_vector_rmj, block); break; } \
+			default: { CCV_SPARSE_FOREACH_X(mat, _ccv_sparse_get_8u_vector_rmj, block); } } } \
+	} while (0)
+
+#define CCV_SPARSE_VECTOR_FOREACH_X(mat, vector, block, for_block) \
+	do { \
+		int _i_; \
+		__attribute__((unused)) const size_t _c_ = CCV_GET_CHANNEL((mat)->type); \
+		if ((mat)->type & CCV_DENSE_VECTOR) \
+		{ \
+			for (_i_ = 0; _i_ < (vector)->size; _i_++) \
+			{ \
+				block(_i_, _i_ * _c_, (vector)->data, for_block); \
+			} \
+		} else { \
+			const size_t _idx_size_ = sizeof(ccv_sparse_matrix_index_t) + ((CCV_GET_DATA_TYPE_SIZE((mat)->type) * CCV_GET_CHANNEL((mat)->type) + 3) & -4); \
+			uint8_t* const _vidx_ = (uint8_t*)(vector)->index; \
+			for (_i_ = 0; _i_ < (vector)->size; _i_++) \
+			{ \
+				ccv_sparse_matrix_index_t* const _idx_i_ = (ccv_sparse_matrix_index_t*)(_vidx_ + _idx_size_ * _i_); \
+				if (_idx_i_->ifbit <= 1) \
+					continue; \
+				ccv_numeric_data_t _d_ = { .u8 = (uint8_t*)(_idx_i_ + 1) }; \
+				block(_idx_i_->i, 0, _d_, for_block); \
+			} \
+		} \
+	} while (0)
+#define _ccv_sparse_get_32s_cell(_i_, _k_, _d_, block) block((_i_), (_d_.i32 + (_k_)))
+#define _ccv_sparse_get_32f_cell(_i_, _k_, _d_, block) block((_i_), (_d_.f32 + (_k_)))
+#define _ccv_sparse_get_64s_cell(_i_, _k_, _d_, block) block((_i_), (_d_.i64 + (_k_)))
+#define _ccv_sparse_get_64f_cell(_i_, _k_, _d_, block) block((_i_), (_d_.f64 + (_k_)))
+#define _ccv_sparse_get_8u_cell(_i_, _k_, _d_, block) block((_i_), (_d_.u8 + (_k_)))
+/**
+ * This method enables you to loop over non-zero (or assigned) positions in one vector of a sparse matrix (you can use ccv_get_sparse_matrix_vector method)
+ * @param mat The sparse matrix.
+ * @param vector The vector within the sparse matrix.
+ * @param block(index, value) a macro to loop over, index is the position (depends on if it is row major or col major), value is the typed array.
+ */
+#define CCV_SPARSE_VECTOR_FOREACH(mat, vector, block) \
+	do { switch (CCV_GET_DATA_TYPE((mat)->type)) { \
+			case CCV_32S: { CCV_SPARSE_VECTOR_FOREACH_X(mat, vector, _ccv_sparse_get_32s_cell, block); break; } \
+			case CCV_32F: { CCV_SPARSE_VECTOR_FOREACH_X(mat, vector, _ccv_sparse_get_32f_cell, block); break; } \
+			case CCV_64S: { CCV_SPARSE_VECTOR_FOREACH_X(mat, vector, _ccv_sparse_get_64s_cell, block); break; } \
+			case CCV_64F: { CCV_SPARSE_VECTOR_FOREACH_X(mat, vector, _ccv_sparse_get_64f_cell, block); break; } \
+			default: { CCV_SPARSE_VECTOR_FOREACH_X(mat, vector, _ccv_sparse_get_8u_cell, block); } } \
+	} while (0)
 
 /**
  * Generate a matrix signature based on input message and other signatures. This is the core method for ccv cache. In short, ccv does a given image processing by first generating an appropriate signature for that operation. It requires 1). an operation-specific message, which can be generated by concatenate the operation name and parameters. 2). the signature of input matrix(es). After that, ccv will look-up matrix in cache with the newly generated signature. If it exists, ccv will return that matrix and skip the whole operation.
@@ -650,14 +748,21 @@ ccv_sparse_matrix_t* ccv_get_sparse_matrix(ccv_matrix_t* mat);
  * @param mat The sparse matrix.
  * @param index The index of that vector.
  */
-ccv_dense_vector_t* ccv_get_sparse_matrix_vector(ccv_sparse_matrix_t* mat, int index);
+ccv_sparse_matrix_vector_t* ccv_get_sparse_matrix_vector(const ccv_sparse_matrix_t* mat, int index);
+/**
+ * Get cell for a vector of a sparse matrix.
+ * @param mat The sparse matrix.
+ * @param vector The vector.
+ * @param index The index of the cell.
+ */
+ccv_numeric_data_t ccv_get_sparse_matrix_cell_from_vector(const ccv_sparse_matrix_t* mat, ccv_sparse_matrix_vector_t* vector, int index);
 /**
  * Get cell from a sparse matrix.
  * @param mat The sparse matrix.
  * @param row The row index.
  * @param col The column index.
  */
-ccv_matrix_cell_t ccv_get_sparse_matrix_cell(ccv_sparse_matrix_t* mat, int row, int col);
+ccv_numeric_data_t ccv_get_sparse_matrix_cell(const ccv_sparse_matrix_t* mat, int row, int col);
 /**
  * Set cell for a sparse matrix.
  * @param mat The sparse matrix.
@@ -665,19 +770,19 @@ ccv_matrix_cell_t ccv_get_sparse_matrix_cell(ccv_sparse_matrix_t* mat, int row, 
  * @param col The column index.
  * @param data The data pointer.
  */
-void ccv_set_sparse_matrix_cell(ccv_sparse_matrix_t* mat, int row, int col, void* data);
+void ccv_set_sparse_matrix_cell(ccv_sparse_matrix_t* mat, int row, int col, const void* data);
 /**
  * Transform a sparse matrix into compressed representation.
  * @param mat The sparse matrix.
  * @param csm The compressed matrix.
  */
-void ccv_compress_sparse_matrix(ccv_sparse_matrix_t* mat, ccv_compressed_sparse_matrix_t** csm);
+void ccv_compress_sparse_matrix(const ccv_sparse_matrix_t* mat, ccv_compressed_sparse_matrix_t** csm);
 /**
  * Transform a compressed matrix into a sparse matrix.
  * @param csm The compressed matrix.
  * @param smt The sparse matrix.
  */
-void ccv_decompress_sparse_matrix(ccv_compressed_sparse_matrix_t* csm, ccv_sparse_matrix_t** smt);
+void ccv_decompress_sparse_matrix(const ccv_compressed_sparse_matrix_t* csm, ccv_sparse_matrix_t** smt);
 /**
  * Offset input matrix by x, y.
  * @param a The input matrix.
@@ -842,6 +947,12 @@ void ccv_make_array_mutable(ccv_array_t* array);
  */
 void ccv_array_zero(ccv_array_t* array);
 /**
+ * Resize the array, it will change the array->rnum and zero init the rest.
+ * @param array The array.
+ * @param rnum The expanded size of the array.
+ */
+void ccv_array_resize(ccv_array_t* array, int rnum);
+/**
  * Clear the array, it will reset the array->rnum to 0.
  * @param array The array.
  */
@@ -861,7 +972,7 @@ void ccv_array_free(ccv_array_t* array);
  * @param a The array.
  * @param i The index of the element in the array.
  */
-#define ccv_array_get(a, i) (((char*)((a)->data)) + (size_t)(a)->rsize * (size_t)(i))
+#define ccv_array_get(a, i) ((void*)(((char*)((a)->data)) + (size_t)(a)->rsize * (size_t)(i)))
 
 typedef struct {
 	int x, y;
@@ -2307,11 +2418,11 @@ enum {
 	CCV_CLI_NONE = 0,
 };
 
-
 int ccv_cli_output_level_and_above(int level);
-void ccv_set_cli_output_levels(int level);
-int ccv_get_cli_output_levels(void);
+void ccv_cli_set_output_levels(int level);
+int ccv_cli_get_output_levels(void);
 
-#define CCV_CLI_OUTPUT_LEVEL_IS(a) (a & ccv_get_cli_output_levels())
+#define CCV_CLI_SET_OUTPUT_LEVEL_AND_ABOVE(level) ccv_cli_set_output_levels(ccv_cli_output_level_and_above(level))
+#define CCV_CLI_OUTPUT_LEVEL_IS(a) (a & ccv_cli_get_output_levels())
 
 #endif

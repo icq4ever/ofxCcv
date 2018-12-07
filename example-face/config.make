@@ -71,6 +71,7 @@
 #
 #   Note: Leave a leading space when adding list items with the += operator
 ################################################################################
+PROJECT_LDFLAGS += -lm -lpng -ljpeg -lfftw3 -lfftw3f -lpthread -lavcodec -lavformat -lswscale -lgsl -lgslcblas -lcuda -lcudart -lcublas -L/opt/cuda/lib64
 
 # Currently, shared libraries that are needed are copied to the 
 # $(PROJECT_ROOT)/bin/libs directory.  The following LDFLAGS tell the linker to
@@ -138,5 +139,5 @@
 #		(default) PROJECT_CC = (blank)
 #   Note: Leave a leading space when adding list items with the += operator
 ################################################################################
-# PROJECT_CXX = 
-# PROJECT_CC = 
+#PROJECT_CXX = clang
+#PROJECT_CC = clang
