@@ -19,3 +19,6 @@ bin/
 build/
 !data/
 /.project
+
+.vscode/
+
