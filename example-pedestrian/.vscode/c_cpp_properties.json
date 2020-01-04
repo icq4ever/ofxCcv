@@ -1,5 +1,6 @@
 {
-    "configurations": [{
+    "configurations": [
+        {
             "name": "Mac",
             "includePath": [
                 "/usr/include",
@@ -32,10 +33,7 @@
                 "${workspaceRoot}/../../../libs/rtAudio/include",
                 "${workspaceRoot}/../../../libs/tess2/include",
                 "${workspaceRoot}/../../../libs/uriparser/include",
-                "${workspaceRoot}/../../../libs/utf8/include",
-                "${workspaceRoot}/../../../addons/ofxOsc/src",
-                "${workspaceRoot}/../../../addons/ofxOsc/libs/oscpack/src/osc",
-                "${workspaceRoot}/../../../addons/ofxOsc/libs/oscpack/src/ip"
+                "${workspaceRoot}/../../../libs/utf8/include"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
@@ -54,7 +52,10 @@
             "macFrameworkPath": [
                 "/System/Library/Frameworks",
                 "/Library/Frameworks"
-            ]
+            ],
+            "compilerPath": "/usr/local/bin/gcc-8",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
         },
         {
             "name": "Linux",
@@ -65,23 +66,11 @@
                 "/usr/include/c++/5/backward",
                 "/usr/lib/gcc/x86_64-linux-gnu/5/include",
                 "/usr/lib/x86_64-linux-gnu/glib-2.0/include",
-                "/usr/lib/glib-2.0/include",
                 "/usr/lib/x86_64-linux-gnu/gstreamer-1.0/include",
+                "/usr/local/include",
                 "/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed",
                 "/usr/include/x86_64-linux-gnu",
-                "/usr/include/x86_64-linux-gnu/c++/5",
-                "/usr/include/pulse",
-                "/usr/include/cairo",
-                "/usr/include/gstreamer-1.0",
-                "/usr/include/glib-2.0",
-                "${workspaceRoot}/",
-                "${workspaceRoot}/**",
-                "${workspaceRoot}/../../../libs/",
-                "${workspaceRoot}/../../../libs/**",
-                "${workspaceRoot}/../../../addons/",
-                "${workspaceRoot}/../../../addons/**",
-                "${workspaceRoot}/../../../libs/openFrameworks/",
-                "${workspaceRoot}/../../../libs/openFrameworks/**",
+                "${workspaceRoot}/../../../libs/openFrameworks",
                 "${workspaceRoot}/../../../libs/openFrameworks/3d",
                 "${workspaceRoot}/../../../libs/openFrameworks/app",
                 "${workspaceRoot}/../../../libs/openFrameworks/communication",
@@ -109,42 +98,78 @@
                 "${workspaceRoot}/../../../libs/uriparser/include",
                 "${workspaceRoot}/../../../libs/utf8/include",
                 "${workspaceRoot}/../../../libs/poco/include",
-                "${workspaceRoot}/../../../libs/kiss/include"
+                "${workspaceRoot}/../../../libs/kiss/include",
+                "/usr/include/x86_64-linux-gnu/c++/5",
+                "/usr/include/pulse",
+                "/usr/include/cairo",
+                "/usr/include/gstreamer-1.0",
+                "/usr/include/glib-2.0",
+                "${workspaceRoot}"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
-                "databaseFilename": "${workspaceRoot}/.vscode/browse.db",
+                "databaseFilename": "",
                 "path": [
                     "/usr/include",
                     "/usr/local/include",
-                    "${workspaceRoot}/",
-                    "${workspaceRoot}/**",
-                    "${workspaceRoot}/../../../libs/",
-                    "${workspaceRoot}/../../../libs/**",
-                    "${workspaceRoot}/../../../addons/",
-                    "${workspaceRoot}/../../../addons/**",
-                    "${workspaceRoot}/../../../libs/openFrameworks/",
-                    "${workspaceRoot}/../../../libs/openFrameworks/**"
+                    "${workspaceRoot}/../../../libs",
+                    "${workspaceRoot}/../../../addons",
+                    "${workspaceRoot}/../../../libs/openFrameworks"
                 ]
             },
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "/bin/clang",
+            "compilerPath": "/usr/local/bin/gcc-8",
             "cStandard": "c11",
             "cppStandard": "c++17"
         },
         {
             "name": "Win32",
             "includePath": [
-                "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/include/*"
+                "C:/msys64/mingw32/include/c++/7.4.0",
+                "C:/msys64/mingw32/i686-w64-mingw32/include",
+                "${workspaceRoot}/../../../libs",
+                "${workspaceRoot}/../../../addons",
+                "${workspaceRoot}/../../../libs/openFrameworks",
+                "${workspaceRoot}/../../../libs/openFrameworks/3d",
+                "${workspaceRoot}/../../../libs/openFrameworks/app",
+                "${workspaceRoot}/../../../libs/openFrameworks/communication",
+                "${workspaceRoot}/../../../libs/openFrameworks/events",
+                "${workspaceRoot}/../../../libs/openFrameworks/gl",
+                "${workspaceRoot}/../../../libs/openFrameworks/graphics",
+                "${workspaceRoot}/../../../libs/openFrameworks/math",
+                "${workspaceRoot}/../../../libs/openFrameworks/sound",
+                "${workspaceRoot}/../../../libs/openFrameworks/types",
+                "${workspaceRoot}/../../../libs/openFrameworks/utils",
+                "${workspaceRoot}/../../../libs/openFrameworks/video",
+                "${workspaceRoot}/../../../libs/boost/include",
+                "${workspaceRoot}/../../../libs/cairo/include",
+                "${workspaceRoot}/../../../libs/curl/include",
+                "${workspaceRoot}/../../../libs/fmodex/include",
+                "${workspaceRoot}/../../../libs/FreeImage/include",
+                "${workspaceRoot}/../../../libs/freetype/include",
+                "${workspaceRoot}/../../../libs/glew/include",
+                "${workspaceRoot}/../../../libs/glfw/include",
+                "${workspaceRoot}/../../../libs/glm/include",
+                "${workspaceRoot}/../../../libs/json/include",
+                "${workspaceRoot}/../../../libs/pugixml/include",
+                "${workspaceRoot}/../../../libs/rtAudio/include",
+                "${workspaceRoot}/../../../libs/tess2/include",
+                "${workspaceRoot}/../../../libs/uriparser/include",
+                "${workspaceRoot}/../../../libs/utf8/include"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": "",
                 "path": [
-                    "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/include/*"
+                    "${workspaceRoot}/../../../libs",
+                    "${workspaceRoot}/../../../addons",
+                    "${workspaceRoot}/../../../libs/openFrameworks"    
                 ]
             },
-            "intelliSenseMode": "msvc-x64"
+            "intelliSenseMode": "clang-x64",
+            "compilerPath": "C:/msys64/mingw32/bin/g++.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
         }
     ],
     "version": 4

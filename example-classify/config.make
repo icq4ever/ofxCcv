@@ -74,7 +74,7 @@
 # PROJECT_LDFLAGS += -lm -lpng -ljpeg -lfftw3 -lfftw3f -lpthread -lavcodec -lavformat -lswscale -lgsl -lgslcblas -lcuda -lcudart -lcublas -L/opt/cuda/lib64
 # PROJECT_LDFLAGS += -lm -lpng -ljpeg -lfftw3 -lfftw3f -lpthread -lavcodec -lavformat -lswscale -lgsl -lgslcblas
 # PROJECT_LDFLAGS+= -lpng -ljpeg -lfftw3 -lfftw3f -Wl,--no-as-needed -lgsl -lgslcblas -lcuda -lcudart -lcublas -L/opt/cuda/lib64
-PROJECT_LDFLAGS += -lpng -ljpeg -lfftw3 -lfftw3f -Wl,--no-as-needed -lgsl -lgslcblas -Wl,--as-needed -lrt -lcuda -lcudart -lcublas -L/opt/cuda/lib64 /home/hirad/Code/oF/addons/ofxCcv/libs/ccv/lib/linux64/culibos.a /home/hirad/Code/oF/addons/ofxCcv/libs/ccv/lib/linux64/cublas_static.a /home/hirad/Code/oF/addons/ofxCcv/libs/ccv/lib/linux64/cudart_static.a
+PROJECT_LDFLAGS += -lpng -ljpeg -lfftw3 -lfftw3f -Wl,--no-as-needed -lgsl -lgslcblas -Wl,--as-needed -lrt -lcuda -lcudart -lcublas -L/opt/cuda/lib64 -lculibos -lcublas_static -lcudart_static 
 
 
 

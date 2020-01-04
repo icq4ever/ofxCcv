@@ -10,6 +10,7 @@ public:
     
     void setup() {
         ccv.setupFace("face.sqlite3");
+		cam.setDeviceID(2);
         cam.initGrabber(640, 480);
     }
     void update() {

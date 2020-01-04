@@ -7,7 +7,7 @@ void ofApp::setup() {
 //    ofPixels img;
 //    ofLoadImage(img, "cat.jpg");
 //    ccv.classify(img);
-    
+    cam.setDeviceID(2);
     cam.initGrabber(640, 480);
 }
 
